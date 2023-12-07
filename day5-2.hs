@@ -1,24 +1,46 @@
 import System.IO  
 import Control.Monad
 import Data.List.Split (splitWhen, chunksOf)
-import Data.List (find)
+import Data.List (elemIndex)
 
 readSInt :: String -> Int
 readSInt s = read s
 
 getListPair :: String -> String -> [String] -> [[Int]]
 getListPair end start ss = map (map readSInt) (map (splitWhen (==' ')) (filter (/="") (tail (takeWhile (/=end) (dropWhile (/=start) ss)))))
+getListPair [] start ss = map (map readSInt) (map (splitWhen (==' ')) (filter (/="") (tail (dropWhile (/=start) ss))))
 
-getMapFromListPair :: [[Int]] -> [Int] -> [(Int,Int)]
-getMapFromListPair is cand = filter (\(f,s) -> f `elem` cand) (zip (concat(map (\y -> (map (\x -> x + (y!!1)) [0 .. (y!!2)-1])) is)) (concat(map (\y -> (map (\x -> x + (y!!0)) [0 .. (y!!2)-1])) is)))
 
-getPaths :: [(Int,Int)] -> Int -> Int
-getPaths ps i = case (find (\(f,s) -> f == i) ps) of
-  Just (f,s) -> s
-  Nothing -> i
 
-getPathsF :: Int -> [(Int,Int)] -> Int
-getPathsF i ps = getPaths ps i
+-- getFullListPair :: String -> String -> [String] -> [[Int]]
+-- getFullListPair start end ss = [concat(map (\y -> (map (\x -> x + (y!!1)) [0 .. (y!!2)-1])) is), (concat(map (\y -> (map (\x -> x + (y!!0)) [0 .. (y!!2)-1])) is))] where is = getListPair end start ss
+
+getRangeSpec :: String -> String -> [String] -> [[Int]]
+getRangeSpec start end ss = getListPair end start ss
+
+getNextM :: Int -> [Int] -> Int
+getNextM src amap = if ((src >= (amap!!1)) && (src <= ((amap!!1) + (amap!!2))))
+  then ((amap!!0)+(src-(amap!!1)))
+  else src
+
+getNextMM :: [[Int]] -> Int -> [Int]
+getNextMM amap src = (map (getNextM src) amap)
+
+
+getNext :: [[Int]] -> Int -> Int
+getNext amap src = if (others == []) then src else (others!!0)
+  where others = filter (/=src) (getNextMM amap src)
+
+-- getNext :: Int -> [Int] -> [Int] -> Int
+-- getNext query src dst = case elemIndex query src of
+--   Just x -> dst!!x
+--   Nothing -> query
+
+-- getNextF :: [[Int]] -> Int -> Int
+-- getNextF m query = getNext query src dst
+--   where
+--     src = m!!0
+--     dst = m!!1
 
 main = do
         handle <- openFile "inputs/day5/input" ReadMode
@@ -26,20 +48,44 @@ main = do
         let list = lines contents
         let seeds' = map (readSInt) (tail (splitWhen(==' ') (list!!0)))
         let seeds = concat(map (\x -> [x!!0 .. (x!!0+x!!1-1)]) (chunksOf 2 seeds'))
-        let seedtosoilmap = getMapFromListPair (getListPair "soil-to-fertilizer map:" "seed-to-soil map:" list) seeds
-        let soils = map (getPaths seedtosoilmap) seeds
-        let soiltofertilizermap = getMapFromListPair (getListPair "fertilizer-to-water map:" "soil-to-fertilizer map:" list) soils
-        let fertilizers = map (getPaths soiltofertilizermap) soils
-        let fertilizertowatermap = getMapFromListPair (getListPair "water-to-light map:" "fertilizer-to-water map:" list) fertilizers
-        let waters = map (getPaths fertilizertowatermap) fertilizers
-        let watertolightmap = getMapFromListPair (getListPair "light-to-temperature map:" "water-to-light map:" list) waters
-        let lights = map (getPaths watertolightmap) waters
-        let lighttotempmap = getMapFromListPair (getListPair "temperature-to-humidity map:" "light-to-temperature map:" list) lights
-        let temps = map (getPaths lighttotempmap) lights
-        let temptohumidmap = getMapFromListPair (getListPair "humidity-to-location map:" "temperature-to-humidity map:" list) temps
-        let humids = map (getPaths temptohumidmap) temps
-        let humidtolocmap = getMapFromListPair (map (map readSInt) (map (splitWhen (==' ')) (filter (/="") (tail (dropWhile (/="humidity-to-location map:") list))))) humids
-        let locs = map (getPaths humidtolocmap) humids
+        -- print "seed"
+        -- print seeds
+        let rs1 = getRangeSpec "seed-to-soil map:" "soil-to-fertilizer map:" list
+--        print rs1
+        let soils = map (getNext rs1) seeds
+--        print "soil"
+--        print soils
+        let rs2 = getRangeSpec "soil-to-fertilizer map:" "fertilizer-to-water map:" list
+--        print rs2
+        let ferts = map (getNext rs2) soils
+--        print "fert"
+--        print ferts
+        let rs3 = getRangeSpec "fertilizer-to-water map:" "water-to-light map:" list
+--        print rs3
+        let wat = map (getNext rs3) ferts
+--        print "wat"
+--        print wat
+        let rs4 = getRangeSpec "water-to-light map:" "light-to-temperature map:" list
+--        print rs4
+        let light = map (getNext rs4) wat
+--        print "light"
+--        print light
+        let rs5 = getRangeSpec "light-to-temperature map:" "temperature-to-humidity map:" list
+--        print rs5
+        let temp = map (getNext rs5) light
+--        print "temp"
+--        print temp
+        let rs6 = getRangeSpec "temperature-to-humidity map:" "humidity-to-location map:" list
+--        print rs6
+        let hum = map (getNext rs6) temp
+--        print "hum"
+--        print hum
+        let rs7 = getRangeSpec "humidity-to-location map:" "" list
+--        print rs7
+        let loc = map (getNext rs7) hum
+--        print "loc"
+--        print(loc)
+
 
         print("Part 2")
-        print(minimum locs)
+        print(minimum(loc))
